@@ -10,7 +10,6 @@ import OrderManager from './components/OrderManager';
 import CustomerManager from './components/CustomerManager';
 import PaymentManager from './components/PaymentManager';
 import ExpenseManager from './components/ExpenseManager';
-import MaterialCalculator from './components/MaterialCalculator';
 import Reports from './components/Reports';
 import PrintDocument from './components/PrintDocument';
 import SettingsManager from './components/SettingsManager';
@@ -136,9 +135,6 @@ const App: React.FC = () => {
           )}
           {currentView === 'expenses' && (
             <ExpenseManager state={state} updateState={updateState} flashToast={flashToast} onUndo={handleUndo} />
-          )}
-          {currentView === 'materials' && (
-            <MaterialCalculator state={state} updateState={updateState} flashToast={flashToast} />
           )}
           {currentView === 'reports' && <Reports state={state} />}
           {currentView === 'settings' && <SettingsManager state={state} updateState={updateState} flashToast={flashToast} />}

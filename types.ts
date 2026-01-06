@@ -41,6 +41,10 @@ export interface Invoice {
   due: string;
   items: LineItem[];
   meta: DocMeta;
+  directMaterials?: number;
+  matLength?: number;
+  matWidth?: number;
+  matPieces?: number;
 }
 
 export interface SalesOrder {
@@ -52,6 +56,10 @@ export interface SalesOrder {
   created: string;
   items: LineItem[];
   meta: DocMeta;
+  directMaterials?: number;
+  matLength?: number;
+  matWidth?: number;
+  matPieces?: number;
 }
 
 export interface Payment {
@@ -97,4 +105,4 @@ export interface AppState {
   };
 }
 
-export type ViewType = 'dashboard' | 'invoices' | 'orders' | 'customers' | 'payments' | 'expenses' | 'materials' | 'reports' | 'settings';
+export type ViewType = 'dashboard' | 'invoices' | 'orders' | 'customers' | 'payments' | 'expenses' | 'reports' | 'settings';

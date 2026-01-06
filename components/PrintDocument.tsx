@@ -11,7 +11,7 @@ interface PrintDocumentProps {
 
 const PrintDocument: React.FC<PrintDocumentProps> = ({ type, data, state }) => {
   const customer = state.customers.find(c => c.id === data.customerId) || data.manualCustomer;
-  const totals = calculateDocTotals(data.items, data.meta);
+  const totals = calculateDocTotals(data.items, data.meta, data.directMaterials || 0);
   const isInvoice = type === 'invoice';
   
   return (
@@ -125,6 +125,12 @@ const PrintDocument: React.FC<PrintDocumentProps> = ({ type, data, state }) => {
 
         <div className="flex justify-end font-sans">
           <div className="w-80 space-y-3 bg-slate-50 p-6 rounded-2xl">
+            {data.directMaterials && data.directMaterials > 0 ? (
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 uppercase font-bold text-[10px] tracking-widest">Direct Materials</span>
+                <span className="font-mono font-bold">{formatCurrency(data.directMaterials)}</span>
+              </div>
+            ) : null}
             <div className="flex justify-between text-sm">
               <span className="text-slate-500 uppercase font-bold text-[10px] tracking-widest">Subtotal</span>
               <span className="font-mono font-bold">{formatCurrency(totals.base)}</span>

@@ -8,11 +8,11 @@ export const getLineItemValue = (item: LineItem) => {
   return isDebitCode(item.account) ? -1 * base : base;
 };
 
-export const calculateDocTotals = (items: LineItem[], meta: DocMeta) => {
-  const base = items.reduce((s, i) => s + getLineItemValue(i), 0);
+export const calculateDocTotals = (items: LineItem[], meta: DocMeta, directMaterials: number = 0) => {
+  const base = items.reduce((s, i) => s + getLineItemValue(i), 0) + directMaterials;
   
-  // Calculate discount on base revenue items only
-  const creditsOnly = items.filter(i => !isDebitCode(i.account)).reduce((s, i) => s + getLineItemValue(i), 0);
+  // Calculate discount on base revenue items + direct materials
+  const creditsOnly = items.filter(i => !isDebitCode(i.account)).reduce((s, i) => s + getLineItemValue(i), 0) + directMaterials;
   const discount = meta.discountRate ? (meta.discountType === 'flat' ? meta.discountRate : creditsOnly * (meta.discountRate / 100)) : 0;
   
   const taxedBase = creditsOnly - discount;
@@ -29,12 +29,10 @@ export const calculateDocTotals = (items: LineItem[], meta: DocMeta) => {
 };
 
 export const getInvoiceBalance = (invoice: Invoice, allPayments: any[]) => {
-  const totals = calculateDocTotals(invoice.items, invoice.meta);
+  const totals = calculateDocTotals(invoice.items, invoice.meta, invoice.directMaterials || 0);
   const recorded = allPayments.filter(p => p.invoiceId === invoice.id).reduce((s, p) => s + Number(p.amount || 0), 0);
   
-  // Debit lines are already accounted for in totals.total as negative values relative to revenue
-  // but if we want strictly "Balance Due", we calculate (Credits + Adjustments) - Payments
-  const creditsAndAdjustments = calculateDocTotals(invoice.items.filter(i => !isDebitCode(i.account)), invoice.meta).total;
+  const creditsAndAdjustments = calculateDocTotals(invoice.items.filter(i => !isDebitCode(i.account)), invoice.meta, invoice.directMaterials || 0).total;
   const debitLinesSum = invoice.items.filter(i => isDebitCode(i.account)).reduce((s, i) => s + Math.abs(getLineItemValue(i)), 0);
   
   return Math.max(0, creditsAndAdjustments - (recorded + debitLinesSum));

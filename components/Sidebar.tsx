@@ -16,7 +16,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, state }) => {
     { id: 'customers', label: 'Customers', icon: '👥' },
     { id: 'payments', label: 'Payments', icon: '💰' },
     { id: 'expenses', label: 'Expenses', icon: '📉' },
-    { id: 'materials', label: 'Materials Calc', icon: '📐' },
     { id: 'reports', label: 'Reports', icon: '📁' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
