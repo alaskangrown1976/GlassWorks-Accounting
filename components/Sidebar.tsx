@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ViewType, AppState } from '../types';
 
 interface SidebarProps {
@@ -9,6 +9,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, state }) => {
+  const [search, setSearch] = useState('');
+
   const links: { id: ViewType; label: string; icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'invoices', label: 'Invoices', icon: '📄' },
@@ -20,6 +22,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, state }) => {
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
+  const filteredLinks = links.filter(link => link.label.toLowerCase().includes(search.toLowerCase()));
+
   const needsBackup = !state.lastBackup || 
     (Date.now() - new Date(state.lastBackup).getTime() > 1000 * 60 * 60 * 24 * 7);
 
@@ -28,13 +32,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, state }) => {
       <div className="flex items-center gap-3">
         <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-slate-700 shadow-lg flex items-center justify-center text-white font-bold text-lg">GW</div>
         <div>
-          <p className="text-lg font-semibold tracking-tight">GlassWorks</p>
-          <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 leading-none mt-1">Stained Glass</p>
+          <p className="text-lg font-semibold tracking-tight leading-none">GlassWorks</p>
+          <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 leading-none mt-2">Stained Glass</p>
+        </div>
+      </div>
+
+      <div className="px-2">
+        <div className="relative group">
+          <span className="absolute left-3 top-2.5 opacity-30 text-xs">🔍</span>
+          <input 
+            type="text" 
+            placeholder="Search menu..."
+            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-2 pl-9 pr-3 text-xs focus:ring-1 focus:ring-sky-500 outline-none placeholder:text-slate-600 transition-all"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
       </div>
       
-      <nav className="flex flex-col gap-1 text-sm">
-        {links.map(link => (
+      <nav className="flex flex-col gap-1 text-sm overflow-y-auto pr-1">
+        {filteredLinks.map(link => (
           <button
             key={link.id}
             onClick={() => setView(link.id)}
@@ -48,6 +65,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, state }) => {
             <span className="font-bold tracking-tight">{link.label}</span>
           </button>
         ))}
+        {filteredLinks.length === 0 && (
+          <p className="text-xs text-slate-600 text-center py-4 italic">No items found</p>
+        )}
       </nav>
 
       <div className="mt-auto space-y-3">

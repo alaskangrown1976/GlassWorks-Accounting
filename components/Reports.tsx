@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { AppState } from '../types';
-import { calculateDocTotals, formatCurrency } from '../utils/calculations';
+import { AppState, Invoice, Payment, Expense } from '../types';
+import { calculateDocTotals, formatCurrency, getInvoiceBalance } from '../utils/calculations';
 
 interface ReportsProps {
   state: AppState;
@@ -16,6 +16,59 @@ const Reports: React.FC<ReportsProps> = ({ state }) => {
     acc[e.category] = (acc[e.category] || 0) + e.amount;
     return acc;
   }, {} as Record<string, number>);
+
+  const downloadCSV = (filename: string, rows: string[][]) => {
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportInvoices = () => {
+    const headers = ["ID", "Date", "Customer", "Total", "Balance"];
+    const rows = state.invoices.map(inv => {
+      const customer = state.customers.find(c => c.id === inv.customerId);
+      const totals = calculateDocTotals(inv.items, inv.meta, inv.directMaterials || 0);
+      return [
+        inv.id,
+        inv.created,
+        customer?.name || inv.manualCustomer?.name || 'Manual',
+        totals.total.toFixed(2),
+        getInvoiceBalance(inv, state.payments).toFixed(2)
+      ];
+    });
+    downloadCSV("glassworks_invoices.csv", [headers, ...rows]);
+  };
+
+  const exportPayments = () => {
+    const headers = ["ID", "Invoice ID", "Date", "Method", "Amount", "Note"];
+    const rows = state.payments.map(p => [
+      p.id,
+      p.invoiceId,
+      p.date,
+      p.method,
+      p.amount.toFixed(2),
+      p.note || ''
+    ]);
+    downloadCSV("glassworks_payments.csv", [headers, ...rows]);
+  };
+
+  const exportExpenses = () => {
+    const headers = ["ID", "Date", "Vendor", "Category", "Amount", "Note"];
+    const rows = state.expenses.map(e => [
+      e.id,
+      e.date,
+      e.vendor,
+      e.category,
+      e.amount.toFixed(2),
+      e.note || ''
+    ]);
+    downloadCSV("glassworks_expenses.csv", [headers, ...rows]);
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -38,7 +91,7 @@ const Reports: React.FC<ReportsProps> = ({ state }) => {
                 <span className="font-black text-rose-600">{formatCurrency(totalExpenses)}</span>
               </div>
               <div className="flex justify-between items-center py-6">
-                <span className="font-black text-slate-800 uppercase tracking-widest text-xs underline decoration-sky-500 decoration-4 underline-offset-8">Net Studio Profit</span>
+                <span className="font-black text-slate-800 uppercase tracking-widest text-xs underline decoration-sky-500 decoration-4 underline-offset-8 leading-relaxed">Net Studio Profit</span>
                 <span className={`text-2xl font-black tabular-nums ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {formatCurrency(netProfit)}
                 </span>
@@ -63,19 +116,19 @@ const Reports: React.FC<ReportsProps> = ({ state }) => {
         </div>
 
         <div className="space-y-6">
-          <div className="glass p-8 rounded-2xl border border-slate-200 bg-slate-900 text-white shadow-xl group">
+          <div className="glass p-8 rounded-2xl border border-slate-900 bg-slate-900 text-white shadow-xl group">
             <h3 className="text-lg font-black mb-4 uppercase tracking-widest group-hover:text-sky-400 transition-colors">Export Audit Logs</h3>
             <p className="text-sm text-slate-400 mb-6 leading-relaxed">Download your data in CSV format for external processing or tax accountants.</p>
             <div className="grid grid-cols-1 gap-2">
-              <button className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Invoices (.csv)</button>
-              <button className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Payments (.csv)</button>
-              <button className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Expenses (.csv)</button>
+              <button onClick={exportInvoices} className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Invoices (.csv)</button>
+              <button onClick={exportPayments} className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Payments (.csv)</button>
+              <button onClick={exportExpenses} className="w-full py-3 bg-white/10 hover:bg-sky-500 hover:text-white rounded-xl font-bold transition-all uppercase tracking-widest text-[10px]">Export Expenses (.csv)</button>
             </div>
           </div>
           
           <div className="glass p-8 rounded-2xl border border-amber-200 bg-amber-50 shadow-sm overflow-hidden">
             <h3 className="text-lg font-black text-amber-800 mb-2 uppercase tracking-widest">Aging Report</h3>
-            <p className="text-[10px] text-amber-700/70 mb-6 uppercase font-bold tracking-widest leading-relaxed">Summary of unpaid balances sitting in Accounts Receivable.</p>
+            <p className="text-[10px] text-amber-700/70 mb-6 uppercase font-bold tracking-widest leading-relaxed italic">Summary of unpaid balances sitting in Accounts Receivable.</p>
             <div className="space-y-2">
                <div className="flex justify-between text-[10px] font-black text-amber-800/40 uppercase tracking-widest">
                 <span>Timeline</span>
