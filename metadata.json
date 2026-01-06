@@ -1,0 +1,7 @@
+{
+  "name": "GlassWorks v4.0 Financial Suite",
+  "description": "A comprehensive financial management and workflow application for stained glass businesses, featuring professional invoicing, order tracking, and material cost calculations.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
