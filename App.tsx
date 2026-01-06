@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppState, ViewType, Invoice, SalesOrder } from './types';
 import { INITIAL_STATE, DEFAULT_ACCOUNT_CODES } from './constants';
 import Sidebar from './components/Sidebar';
@@ -34,14 +34,14 @@ const App: React.FC = () => {
   });
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; onUndo?: () => void } | null>(null);
+  const [undoStack, setUndoStack] = useState<AppState[]>([]);
   const [printTarget, setPrintTarget] = useState<{ type: 'invoice' | 'order', data: Invoice | SalesOrder } | null>(null);
 
   useEffect(() => {
     localStorage.setItem('glassworks-data-v4', JSON.stringify(state));
   }, [state]);
 
-  // Robust Print Lifecycle Management
   useEffect(() => {
     if (printTarget) {
       const timer = setTimeout(() => {
@@ -61,13 +61,28 @@ const App: React.FC = () => {
     }
   }, [printTarget]);
 
-  const flashToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+  const flashToast = useCallback((msg: string, onUndo?: () => void) => {
+    setToast({ msg, onUndo });
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const updateState = (updater: (prev: AppState) => AppState) => {
-    setState(prev => updater(prev));
+  const updateState = useCallback((updater: (prev: AppState) => AppState, allowUndo = false) => {
+    setState(prev => {
+      if (allowUndo) {
+        setUndoStack(oldStack => [...oldStack, prev].slice(-5)); // Keep last 5 states for undo
+      }
+      return updater(prev);
+    });
+  }, []);
+
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      const prevState = undoStack[undoStack.length - 1];
+      setState(prevState);
+      setUndoStack(undoStack.slice(0, -1));
+      setToast(null);
+    }
   };
 
   const handlePrintRequest = (type: 'invoice' | 'order', data: Invoice | SalesOrder) => {
@@ -85,8 +100,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex text-slate-900 bg-slate-900">
-      <Sidebar currentView={currentView} setView={setCurrentView} />
+    <div className="min-h-screen flex text-slate-900 bg-slate-900 font-sans antialiased">
+      <Sidebar currentView={currentView} setView={setCurrentView} state={state} />
       
       <div className="flex-1 flex flex-col bg-slate-50 relative overflow-y-auto">
         <Header state={state} setState={setState} flashToast={flashToast} />
@@ -101,6 +116,7 @@ const App: React.FC = () => {
               updateState={updateState} 
               flashToast={flashToast} 
               onPrint={(inv) => handlePrintRequest('invoice', inv)} 
+              onUndo={handleUndo}
             />
           )}
           {currentView === 'orders' && (
@@ -109,20 +125,38 @@ const App: React.FC = () => {
               updateState={updateState} 
               flashToast={flashToast} 
               onPrint={(ord) => handlePrintRequest('order', ord)} 
+              onUndo={handleUndo}
             />
           )}
-          {currentView === 'customers' && <CustomerManager state={state} updateState={updateState} flashToast={flashToast} />}
-          {currentView === 'payments' && <PaymentManager state={state} updateState={updateState} flashToast={flashToast} />}
-          {currentView === 'expenses' && <ExpenseManager state={state} updateState={updateState} flashToast={flashToast} />}
-          {currentView === 'materials' && <MaterialCalculator />}
+          {currentView === 'customers' && (
+            <CustomerManager state={state} updateState={updateState} flashToast={flashToast} onUndo={handleUndo} />
+          )}
+          {currentView === 'payments' && (
+            <PaymentManager state={state} updateState={updateState} flashToast={flashToast} onUndo={handleUndo} />
+          )}
+          {currentView === 'expenses' && (
+            <ExpenseManager state={state} updateState={updateState} flashToast={flashToast} onUndo={handleUndo} />
+          )}
+          {currentView === 'materials' && (
+            <MaterialCalculator state={state} updateState={updateState} flashToast={flashToast} />
+          )}
           {currentView === 'reports' && <Reports state={state} />}
           {currentView === 'settings' && <SettingsManager state={state} updateState={updateState} flashToast={flashToast} />}
         </main>
       </div>
 
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50 px-6 py-3 bg-slate-900 text-white rounded-xl shadow-2xl animate-bounce no-print">
-          {toast}
+        <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-4 px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 duration-300 no-print">
+          <span className="font-bold text-sm tracking-tight">{toast.msg}</span>
+          {(toast.onUndo || undoStack.length > 0) && (
+            <button 
+              onClick={toast.onUndo || handleUndo}
+              className="px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              REVERT
+            </button>
+          )}
+          <button onClick={() => setToast(null)} className="ml-2 text-slate-500 hover:text-white font-black">×</button>
         </div>
       )}
     </div>

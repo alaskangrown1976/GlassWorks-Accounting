@@ -79,6 +79,7 @@ export interface AppState {
   payments: Payment[];
   expenses: Expense[];
   accountCodes: AccountCode[];
+  lastBackup?: string;
   settings: {
     locale: string;
     currency: string;
@@ -90,6 +91,9 @@ export interface AppState {
     payment: string;
     watermark: boolean;
     logo: string;
+    address: string;
+    phone: string;
+    email: string;
   };
 }
 

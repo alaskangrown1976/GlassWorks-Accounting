@@ -12,13 +12,6 @@ export const DEFAULT_ACCOUNT_CODES: AccountCode[] = [
   { code: '303', name: 'Venmo/Paypal Payment', rate: null, type: 'debit' }
 ];
 
-export const LABOR_PRESETS = [
-  { id: 'lab-general', label: 'General Labor', rate: 28 },
-  { id: 'lab-skilled', label: 'Skilled Labor', rate: 39.5 },
-  { id: 'lab-premium', label: 'Premium Labor', rate: 48 },
-  { id: 'lab-custom', label: 'Custom', rate: 0 }
-];
-
 export const DOC_META_DEFAULTS: DocMeta = {
   taxRate: 0,
   taxType: 'percent',
@@ -35,16 +28,20 @@ export const INITIAL_STATE: AppState = {
   payments: [],
   expenses: [],
   accountCodes: DEFAULT_ACCOUNT_CODES,
+  lastBackup: new Date().toISOString(),
   settings: {
     locale: 'en-US',
     currency: 'USD'
   },
   branding: {
-    header: '',
-    footer: '',
-    terms: '',
-    payment: '',
+    header: 'GlassWorks Studio',
+    footer: 'Thank you for your business!',
+    terms: 'Net 14 days. 1.5% monthly late fee applies to overdue balances.',
+    payment: 'Payable via Check, Venmo (@GlassWorks-Studio), or Cash.',
     watermark: false,
-    logo: ''
+    logo: '',
+    address: '359 Pauline Street, Anchorage, AK 99503',
+    phone: '(907) 555-0199',
+    email: 'studio@glassworks.example'
   }
 };

@@ -34,6 +34,12 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
   };
 
   const deleteCode = (code: string) => {
+    // Protect core codes
+    const protectedCodes = ['100', '101', '300', '301', '302', '303'];
+    if (protectedCodes.includes(code)) {
+      alert('This is a core system code and cannot be deleted.');
+      return;
+    }
     if (!confirm('Are you sure you want to remove this accounting code? This may affect historical items using this code.')) return;
     updateState(prev => ({
       ...prev,
@@ -51,7 +57,56 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {/* Accounting Codes */}
+          <div className="glass p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-xl font-black text-slate-800 mb-6">Branding & Business Info</h3>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Studio Header Name</label>
+                <input 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
+                  value={state.branding.header}
+                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, header: e.target.value }}))}
+                  placeholder="GlassWorks Studio"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Physical Address</label>
+                <textarea 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
+                  rows={2}
+                  value={state.branding.address}
+                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, address: e.target.value }}))}
+                  placeholder="359 Pauline Street, Anchorage, AK 99503"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Studio Email</label>
+                <input 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
+                  value={state.branding.email}
+                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, email: e.target.value }}))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Studio Phone</label>
+                <input 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
+                  value={state.branding.phone}
+                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, phone: e.target.value }}))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Payment Template</label>
+                <textarea 
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
+                  rows={2}
+                  value={state.branding.payment}
+                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, payment: e.target.value }}))}
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="glass p-8 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-800">Accounting Codes</h3>
@@ -79,7 +134,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
                       <td className="py-4 font-mono font-bold text-sm text-sky-600">{c.code}</td>
                       <td className="py-4">
                         <p className="font-bold text-slate-800">{c.name}</p>
-                        {c.rate && <p className="text-[10px] text-slate-400">Default Rate: ${c.rate}/hr</p>}
+                        {c.rate && <p className="text-[10px] text-slate-400">Rate: ${c.rate}/hr</p>}
                       </td>
                       <td className="py-4">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${
@@ -102,42 +157,17 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
               </table>
             </div>
           </div>
-
-          {/* Branding */}
-          <div className="glass p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-xl font-black text-slate-800 mb-6">Branding & Layout</h3>
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Studio Header Name</label>
-                <input 
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
-                  value={state.branding.header}
-                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, header: e.target.value }}))}
-                  placeholder="GlassWorks Studio"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Payment Notes Template</label>
-                <textarea 
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-sky-500"
-                  rows={3}
-                  value={state.branding.payment}
-                  onChange={e => updateState(p => ({ ...p, branding: { ...p.branding, payment: e.target.value }}))}
-                  placeholder="We accept Check, Venmo, or Bank Transfer..."
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="space-y-8">
           <div className="glass p-8 rounded-2xl border border-indigo-100 bg-indigo-50/30">
             <h3 className="text-lg font-black text-indigo-800 mb-2">System Info</h3>
             <div className="space-y-4 text-sm font-medium text-indigo-700/70">
-              <p>Total Customers: {state.customers.length}</p>
-              <p>Total Invoices: {state.invoices.length}</p>
+              <p>Customers: {state.customers.length}</p>
+              <p>Invoices: {state.invoices.length}</p>
+              <p>Sales Orders: {state.orders.length}</p>
               <p>Currency: {state.settings.currency}</p>
-              <p>Storage: Local Browser</p>
+              <p>Environment: Local Storage</p>
             </div>
           </div>
         </div>
@@ -150,7 +180,7 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
             <form onSubmit={handleAddCode} className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Code ID</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Code</label>
                   <input 
                     placeholder="101" 
                     required 
@@ -160,9 +190,9 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Code Name</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Name</label>
                   <input 
-                    placeholder="Custom Sandblasting" 
+                    placeholder="Description" 
                     required 
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl"
                     value={newCode.name || ''}
@@ -170,10 +200,9 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rate (Optional)</label>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Rate ($)</label>
                   <input 
                     type="number"
                     placeholder="0.00" 
@@ -194,10 +223,9 @@ const SettingsManager: React.FC<SettingsManagerProps> = ({ state, updateState, f
                   </select>
                 </div>
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setIsAddingCode(false)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl">Cancel</button>
-                <button type="submit" className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-xl">Create Code</button>
+                <button type="submit" className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-2xl shadow-xl">Create</button>
               </div>
             </form>
           </div>

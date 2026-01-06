@@ -20,6 +20,8 @@ const Header: React.FC<HeaderProps> = ({ state, setState, flashToast }) => {
     link.download = `glassworks-backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    
+    setState(prev => ({ ...prev, lastBackup: new Date().toISOString() }));
     flashToast('Backup exported successfully');
   };
 
@@ -40,39 +42,57 @@ const Header: React.FC<HeaderProps> = ({ state, setState, flashToast }) => {
     reader.readAsText(file);
   };
 
+  const needsBackup = !state.lastBackup || 
+    (Date.now() - new Date(state.lastBackup).getTime() > 1000 * 60 * 60 * 24 * 7);
+
   return (
-    <header className="sticky top-0 z-30 bg-white/90 border-b border-slate-200 backdrop-blur no-print px-4 py-3">
+    <header className="sticky top-0 z-30 bg-white/90 border-b border-slate-200 backdrop-blur no-print px-6 py-4">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="w-10 h-10 md:hidden rounded-xl bg-gradient-to-br from-sky-500 to-slate-700 shadow-lg flex items-center justify-center text-white font-bold">GW</div>
           <div className="hidden sm:block">
-            <p className="text-lg font-semibold text-slate-800">GlassWorks v4.0</p>
-            <p className="text-xs text-slate-500">Financial Suite • Stable Desktop Experience</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none uppercase italic">
+              {state.branding.header || 'GlassWorks'}
+            </h1>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+              {needsBackup ? (
+                <span className="text-rose-500 animate-pulse">⚠️ Needs Backup</span>
+              ) : (
+                'System Secure'
+              )}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <select 
-            value={state.settings.currency}
-            onChange={(e) => setState(prev => ({ ...prev, settings: { ...prev.settings, currency: e.target.value } }))}
-            className="hidden sm:block text-xs border border-slate-200 rounded px-2 py-1 bg-white"
-          >
-            <option value="USD">USD ($)</option>
-            <option value="CAD">CAD ($)</option>
-            <option value="GBP">GBP (£)</option>
-            <option value="EUR">EUR (€)</option>
-          </select>
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl mr-2">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Locale</span>
+             <select 
+              value={state.settings.currency}
+              onChange={(e) => setState(prev => ({ ...prev, settings: { ...prev.settings, currency: e.target.value } }))}
+              className="text-xs font-bold bg-transparent focus:outline-none"
+            >
+              <option value="USD">USD ($)</option>
+              <option value="CAD">CAD ($)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="EUR">EUR (€)</option>
+            </select>
+          </div>
 
           <button
             onClick={handleExport}
-            className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm font-semibold shadow hover:bg-sky-500 transition-colors"
+            className={`px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest transition-all shadow-lg ${
+              needsBackup 
+                ? 'bg-rose-600 text-white hover:bg-rose-500 shadow-rose-200' 
+                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200'
+            }`}
           >
             Export
           </button>
           
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-semibold shadow-sm hover:bg-slate-50 transition-colors"
+            className="px-4 py-2 rounded-xl border-2 border-slate-200 bg-white text-slate-700 text-sm font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
           >
             Import
           </button>

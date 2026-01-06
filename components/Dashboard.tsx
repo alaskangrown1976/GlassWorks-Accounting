@@ -9,6 +9,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
+  // Use centralized calculation logic
   const receivedRevenue = state.payments.reduce((s, p) => s + p.amount, 0) + 
     state.invoices.flatMap(inv => inv.items)
       .filter(i => i.account.startsWith('30'))
@@ -30,11 +31,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Business Overview</h2>
-          <p className="text-slate-500">Live financial summary for GlassWorks</p>
+          <p className="text-slate-500">Live financial summary for {state.branding.header || 'GlassWorks'}</p>
         </div>
         <div className="flex gap-2 no-print">
-          <button onClick={() => setCurrentView('invoices')} className="px-3 py-1.5 bg-sky-100 text-sky-700 rounded-lg text-xs font-bold">NEW INVOICE</button>
-          <button onClick={() => setCurrentView('orders')} className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold">NEW ORDER</button>
+          <button onClick={() => setCurrentView('invoices')} className="px-3 py-1.5 bg-sky-100 text-sky-700 rounded-lg text-xs font-bold hover:bg-sky-200 transition-colors">NEW INVOICE</button>
+          <button onClick={() => setCurrentView('orders')} className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors">NEW ORDER</button>
         </div>
       </div>
 
@@ -52,7 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
         <div className="glass p-6 rounded-2xl shadow-sm space-y-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-            Critical Outstanding Invoices
+            Outstanding Invoices
           </h3>
           <div className="space-y-3">
             {state.invoices.filter(i => getInvoiceBalance(i, state.payments) > 0).slice(0, 5).map(inv => {
@@ -60,7 +61,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
               return (
                 <div key={inv.id} className="flex justify-between items-center p-3 bg-white/50 border border-slate-100 rounded-xl hover:border-slate-300 transition-colors cursor-pointer" onClick={() => setCurrentView('invoices')}>
                   <div>
-                    <p className="font-bold text-sm text-slate-800">#{inv.id} — {customer?.name || 'Manual Customer'}</p>
+                    <p className="font-bold text-sm text-slate-800">#{inv.id} — {customer?.name || inv.manualCustomer?.name || 'Customer'}</p>
                     <p className="text-xs text-slate-400">Due {inv.due}</p>
                   </div>
                   <p className="font-black text-amber-600">{formatCurrency(getInvoiceBalance(inv, state.payments))}</p>
@@ -68,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
               );
             })}
             {state.invoices.filter(i => getInvoiceBalance(i, state.payments) > 0).length === 0 && (
-              <p className="text-sm text-slate-400 py-4 text-center italic">All invoices are paid up. Great work!</p>
+              <p className="text-sm text-slate-400 py-4 text-center italic">No outstanding balances.</p>
             )}
           </div>
         </div>
@@ -76,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
         <div className="glass p-6 rounded-2xl shadow-sm space-y-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-            Active Sales Pipeline
+            Active Sales Orders
           </h3>
           <div className="space-y-3">
             {state.orders.filter(o => o.status !== 'Completed').slice(0, 5).map(ord => {
@@ -84,7 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
               return (
                 <div key={ord.id} className="flex justify-between items-center p-3 bg-white/50 border border-slate-100 rounded-xl hover:border-slate-300 transition-colors cursor-pointer" onClick={() => setCurrentView('orders')}>
                   <div>
-                    <p className="font-bold text-sm text-slate-800">{ord.id} — {customer?.name || 'Manual Customer'}</p>
+                    <p className="font-bold text-sm text-slate-800">{ord.id} — {customer?.name || ord.manualCustomer?.name || 'Customer'}</p>
                     <p className="text-xs text-slate-400">{ord.status}</p>
                   </div>
                   <p className="font-black text-sky-600">{formatCurrency(calculateDocTotals(ord.items, ord.meta).total)}</p>
@@ -92,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, setCurrentView }) => {
               );
             })}
             {state.orders.filter(o => o.status !== 'Completed').length === 0 && (
-              <p className="text-sm text-slate-400 py-4 text-center italic">No active orders in the pipeline.</p>
+              <p className="text-sm text-slate-400 py-4 text-center italic">No active orders.</p>
             )}
           </div>
         </div>

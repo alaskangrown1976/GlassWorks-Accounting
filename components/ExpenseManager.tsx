@@ -5,11 +5,15 @@ import { formatCurrency } from '../utils/calculations';
 
 interface ExpenseManagerProps {
   state: AppState;
-  updateState: (updater: (prev: AppState) => AppState) => void;
-  flashToast: (msg: string) => void;
+  // Added allowUndo parameter
+  updateState: (updater: (prev: AppState) => AppState, allowUndo?: boolean) => void;
+  // Added onUndo parameter and updated return type
+  flashToast: (msg: string, onUndo?: () => void) => void;
+  // Added onUndo prop
+  onUndo?: () => void;
 }
 
-const ExpenseManager: React.FC<ExpenseManagerProps> = ({ state, updateState, flashToast }) => {
+const ExpenseManager: React.FC<ExpenseManagerProps> = ({ state, updateState, flashToast, onUndo }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Partial<Expense>>({
     date: new Date().toISOString().split('T')[0],
@@ -33,6 +37,12 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ state, updateState, fla
     flashToast('Expense logged');
     setIsAdding(false);
     setForm({ date: new Date().toISOString().split('T')[0], category: 'Supplies' });
+  };
+
+  const handleDelete = (id: string) => {
+    // Enabled undo for deletion
+    updateState(prev => ({ ...prev, expenses: prev.expenses.filter(ex => ex.id !== id) }), true);
+    flashToast('Expense removed', onUndo);
   };
 
   return (
@@ -77,7 +87,7 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ state, updateState, fla
                 <td className="px-6 py-4 font-black text-rose-600">{formatCurrency(e.amount)}</td>
                 <td className="px-6 py-4 text-right">
                   <button 
-                    onClick={() => updateState(prev => ({ ...prev, expenses: prev.expenses.filter(ex => ex.id !== e.id) }))}
+                    onClick={() => handleDelete(e.id)}
                     className="text-xs font-bold text-rose-500 hover:text-rose-700"
                   >
                     Delete
@@ -128,7 +138,7 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ state, updateState, fla
                 required 
                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-black text-rose-600"
                 value={form.amount || ''}
-                onChange={e => setForm({ ...form, amount: e.target.value })}
+                onChange={e => setForm({ ...form, amount: Number(e.target.value) })}
               />
               <textarea 
                 placeholder="Notes / Itemization" 
