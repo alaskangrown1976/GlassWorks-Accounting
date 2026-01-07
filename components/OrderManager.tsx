@@ -8,7 +8,7 @@ interface OrderManagerProps {
   state: AppState;
   updateState: (updater: (prev: AppState) => AppState, allowUndo?: boolean) => void;
   flashToast: (msg: string, onUndo?: () => void) => void;
-  onPrint: (order: SalesOrder) => void;
+  onPrint: (order: SalesOrder, autoPrint?: boolean) => void;
   onUndo?: () => void;
 }
 
@@ -25,14 +25,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ state, updateState, flashTo
   }, [state.orders, state.customers, listSearch]);
 
   const handleDelete = (id: string) => {
-    if (!confirm('Permanently remove this sales order from the active pipeline?')) return;
+    if (!confirm('Remove this project from the active pipeline? This action can be reverted.')) return;
     updateState(prev => ({ ...prev, orders: prev.orders.filter(o => o.id !== id) }), true);
-    flashToast('Order record deleted', onUndo);
+    flashToast('Order record removed', onUndo);
     setSelectedOrder(null);
   };
 
   const handleConvertToInvoice = (ord: SalesOrder) => {
-    if (!confirm('Convert this active Sales Order into a billable Invoice? This will also mark the order as Completed.')) return;
+    if (!confirm('Convert this active Sales Order into a billable Invoice? This will update the status to Completed.')) return;
     const invSeq = getNextInvoiceNumber(state.invoices);
     const newInvoice: Invoice = {
       id: String(invSeq),
@@ -86,7 +86,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ state, updateState, flashTo
           <input 
             type="text" 
             placeholder="Search orders..."
-            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 shadow-sm"
             value={listSearch}
             onChange={e => setListSearch(e.target.value)}
           />
@@ -104,10 +104,10 @@ const OrderManager: React.FC<OrderManagerProps> = ({ state, updateState, flashTo
           <table className="w-full text-left min-w-[800px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-xs font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Serial</th>
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Total</th>
+                <th className="px-6 py-4">Projected Total</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -122,7 +122,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ state, updateState, flashTo
                   >
                     <td className="px-6 py-4 font-mono font-bold text-sm text-slate-400 group-hover:text-indigo-600 transition-colors">SO-{ord.seq}</td>
                     <td className="px-6 py-4">
-                      <p className="font-bold text-slate-800">{customer?.name || ord.manualCustomer?.name || 'Manual'}</p>
+                      <p className="font-bold text-slate-800">{customer?.name || ord.manualCustomer?.name || 'Manual Reference'}</p>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{ord.created}</p>
                     </td>
                     <td className="px-6 py-4">
@@ -146,7 +146,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ state, updateState, flashTo
           </table>
         </div>
         {filteredOrders.length === 0 && (
-          <div className="p-16 text-center text-slate-400 italic">No sales orders found matching your search.</div>
+          <div className="p-20 text-center text-slate-400 italic">No matching orders found.</div>
         )}
       </div>
     </div>
@@ -159,10 +159,11 @@ const OrderEditor: React.FC<{
   state: AppState;
   updateState: (u: (p: AppState) => AppState, allowUndo?: boolean) => void;
   flashToast: (m: string, onUndo?: () => void) => void;
-  onPrint: (ord: SalesOrder) => void;
+  onPrint: (ord: SalesOrder, autoPrint?: boolean) => void;
   onDelete: (id: string) => void;
   onConvertToInvoice: (ord: SalesOrder) => void;
 }> = ({ order, onClose, state, updateState, flashToast, onPrint, onDelete, onConvertToInvoice }) => {
+  const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState<Partial<SalesOrder>>(order || {
     id: `SO-${getNextOrderNumber(state.orders)}`,
     seq: getNextOrderNumber(state.orders),
@@ -209,9 +210,9 @@ const OrderEditor: React.FC<{
     [formData.items, formData.meta, materialBreakdown.total]
   );
 
-  const handleSave = () => {
+  const handleSave = (silent = false) => {
     if (!formData.customerId) {
-      flashToast('Please link a customer to this order');
+      flashToast('Please link a client record.');
       setShowSuggestions(true);
       return;
     }
@@ -230,8 +231,13 @@ const OrderEditor: React.FC<{
         return { ...prev, orders: prev.orders.map(o => o.id === finalOrder.id ? finalOrder : o) };
       }
     });
-    flashToast(order ? 'Project draft updated' : 'Sales order generated');
-    onClose();
+
+    if (!silent) {
+      setShowSuccess(true);
+    } else {
+      flashToast('Draft saved successfully');
+      onClose();
+    }
   };
 
   const addItem = () => {
@@ -254,52 +260,89 @@ const OrderEditor: React.FC<{
     setFormData({ ...formData, items: (formData.items || []).filter((_, i) => i !== idx) });
   };
 
+  const updateMeta = (field: keyof typeof DOC_META_DEFAULTS, value: any) => {
+    setFormData({
+      ...formData,
+      meta: { ...(formData.meta || DOC_META_DEFAULTS), [field]: value }
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      addItem();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-100 flex flex-col md:flex-row h-screen animate-in fade-in duration-300 overflow-hidden no-print">
-      <div className="w-full md:w-80 bg-indigo-950 text-white flex flex-col p-8 border-r border-indigo-900 shadow-2xl overflow-y-auto">
-        <div className="mb-12">
+      <div className="w-full md:w-80 bg-indigo-950 text-white flex flex-col p-6 border-r border-indigo-900 shadow-2xl overflow-y-auto">
+        <div className="mb-8">
           <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-2">Order Workflow</p>
-          <h2 className="text-2xl font-black tracking-tighter uppercase italic leading-none">Project Live Draft</h2>
-          <div className="mt-6 p-5 bg-indigo-900/50 rounded-3xl border border-indigo-800">
-            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Projected Revenue</p>
-            <p className="text-4xl font-black text-sky-400 tabular-nums">{formatCurrency(totals.total)}</p>
+          <h2 className="text-xl font-black tracking-tighter uppercase italic leading-none">Project Live Draft</h2>
+          <div className="mt-6 p-4 bg-indigo-900/50 rounded-2xl border border-indigo-800">
+            <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Estimated Value</p>
+            <p className="text-3xl font-black text-sky-400 tabular-nums">{formatCurrency(totals.total)}</p>
+          </div>
+        </div>
+
+        <div className="space-y-6 mb-8">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest border-b border-indigo-800 pb-2">Adjustments</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-black text-indigo-300 uppercase mb-1">Tax (%)</label>
+              <input 
+                type="number"
+                className="w-full bg-indigo-900 border border-indigo-800 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-sky-500 outline-none"
+                value={formData.meta?.taxRate || 0}
+                onChange={e => updateMeta('taxRate', Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-indigo-300 uppercase mb-1">Disc (%)</label>
+              <input 
+                type="number"
+                className="w-full bg-indigo-900 border border-indigo-800 rounded-lg p-2 text-xs font-bold focus:ring-1 focus:ring-sky-500 outline-none"
+                value={formData.meta?.discountRate || 0}
+                onChange={e => updateMeta('discountRate', Number(e.target.value))}
+              />
+            </div>
           </div>
         </div>
         
-        <div className="flex flex-col gap-4 mt-auto">
+        <div className="flex flex-col gap-3 mt-auto">
           <button 
-            onClick={handleSave}
-            className="w-full py-5 bg-sky-500 hover:bg-sky-400 text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 shadow-xl active:scale-[0.98]"
+            onClick={() => handleSave()}
+            className="w-full py-4 bg-sky-500 hover:bg-sky-400 text-slate-900 rounded-xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 shadow-xl active:scale-[0.98]"
           >
             💾 SAVE DRAFT
           </button>
           <button 
-            onClick={() => onPrint(formData as SalesOrder)}
-            className="w-full py-5 bg-indigo-900 hover:bg-indigo-800 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 border border-indigo-800"
+            onClick={() => onPrint(formData as SalesOrder, true)}
+            className="w-full py-4 bg-indigo-900 hover:bg-indigo-800 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 border border-indigo-800"
           >
-            🖨️ PRINT DRAFT
+            🖨️ PRINT TO PAPER
           </button>
           {order && (
             <>
               <button 
                 onClick={() => onConvertToInvoice(order)}
-                className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 shadow-lg active:scale-[0.98]"
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]"
               >
                 ⚡ CONVERT TO BILL
               </button>
               <button 
                 onClick={() => onDelete(order.id)}
-                className="w-full py-4 bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 rounded-2xl font-black uppercase tracking-widest text-xs transition-all"
+                className="w-full py-3 bg-rose-900/30 hover:bg-rose-900/50 text-rose-300 rounded-xl font-black uppercase tracking-widest text-xs transition-all"
               >
-                🗑️ REMOVE FROM PIPELINE
+                🗑️ REMOVE DRAFT
               </button>
             </>
           )}
           <button 
             onClick={onClose}
-            className="mt-4 w-full py-4 text-indigo-400 hover:text-white font-black text-xs uppercase tracking-widest transition-all"
+            className="mt-2 w-full py-2 text-indigo-400 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all"
           >
-            CANCEL / EXIT
+            BACK TO LIST
           </button>
         </div>
       </div>
@@ -312,7 +355,7 @@ const OrderEditor: React.FC<{
             <div>
               <h1 className="text-5xl font-black uppercase tracking-tighter text-slate-900 leading-none mb-4">{state.branding.header}</h1>
               <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black bg-indigo-50 text-indigo-400 px-3 py-1.5 rounded uppercase tracking-widest shadow-sm">ORDER ID: {formData.id}</span>
+                <span className="text-[10px] font-black bg-indigo-50 text-indigo-400 px-3 py-1.5 rounded uppercase tracking-widest shadow-sm font-mono">ORDER: {formData.id}</span>
                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] italic">Active Pipeline Draft</span>
               </div>
             </div>
@@ -339,7 +382,7 @@ const OrderEditor: React.FC<{
               <div className="relative">
                 <input 
                   ref={searchInputRef}
-                  placeholder="Select customer for linking..."
+                  placeholder="Link client record..."
                   className="w-full text-2xl font-black text-slate-900 outline-none placeholder:text-slate-200 bg-transparent"
                   value={customerSearch}
                   onChange={e => {
@@ -369,26 +412,18 @@ const OrderEditor: React.FC<{
                           >
                             <div className="flex flex-col">
                               <span className="font-black text-slate-800 group-hover/item:text-indigo-600 transition-colors">{c.name}</span>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{c.email || 'No email contact'}</span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{c.email || 'No contact info'}</span>
                             </div>
                             <span className="text-xl opacity-0 group-hover/item:opacity-100 transition-all translate-x-4 group-hover/item:translate-x-0 text-indigo-400">➔</span>
                           </div>
                         ))
                       ) : (
-                        <div className="p-12 text-center text-slate-400 text-sm italic">No matching customers found.</div>
+                        <div className="p-12 text-center text-slate-400 text-sm italic">No matching records.</div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
-              {formData.customerId && (
-                <div className="mt-6 p-5 bg-indigo-50 rounded-2xl border border-indigo-100 text-sm text-indigo-800 font-bold animate-in slide-in-from-top-3 duration-300">
-                  <p className="flex items-start gap-3 mb-2 leading-snug">
-                    <span className="opacity-40 mt-1 text-indigo-400">📍</span> 
-                    {state.customers.find(x => x.id === formData.customerId)?.address || 'Address not listed'}
-                  </p>
-                </div>
-              )}
             </div>
             <div className="text-right">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 border-b border-slate-100 pb-2">Business Details</p>
@@ -396,13 +431,13 @@ const OrderEditor: React.FC<{
                 <p className="font-black text-slate-900 text-lg leading-none">{state.branding.header}</p>
                 <div className="pt-4 border-t border-slate-50">
                   <p className="font-bold text-sky-600">{state.branding.email}</p>
-                  <p className="font-black text-slate-300 text-[10px] uppercase tracking-widest mt-3 italic">ENTRY CREATED: {formData.created}</p>
+                  <p className="font-black text-slate-300 text-[10px] uppercase tracking-widest mt-3 italic">DRAFT CREATED: {formData.created}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-indigo-50/40 rounded-[40px] p-10 border border-indigo-100 mb-16 shadow-inner relative overflow-hidden group hover:border-indigo-300 transition-all duration-500">
+          <div className="bg-indigo-50/40 rounded-[40px] p-10 border border-indigo-100 mb-16 shadow-inner relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-25 transition-opacity pointer-events-none text-indigo-400 text-6xl italic font-black">ESTIMATOR</div>
             <div className="flex items-center gap-4 mb-10">
               <h3 className="text-xs font-black text-indigo-900 uppercase tracking-[0.4em]">Project Materials Calculator</h3>
@@ -415,7 +450,7 @@ const OrderEditor: React.FC<{
                 <input 
                   type="number"
                   placeholder="0.0"
-                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center"
+                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center tabular-nums"
                   value={formData.matLength || ''}
                   onChange={e => setFormData({...formData, matLength: Number(e.target.value)})}
                 />
@@ -425,7 +460,7 @@ const OrderEditor: React.FC<{
                 <input 
                   type="number"
                   placeholder="0.0"
-                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center"
+                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center tabular-nums"
                   value={formData.matWidth || ''}
                   onChange={e => setFormData({...formData, matWidth: Number(e.target.value)})}
                 />
@@ -435,7 +470,7 @@ const OrderEditor: React.FC<{
                 <input 
                   type="number"
                   placeholder="0"
-                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center"
+                  className="w-full p-6 bg-white border border-indigo-100 rounded-3xl text-2xl font-black outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm text-center tabular-nums"
                   value={formData.matPieces || ''}
                   onChange={e => setFormData({...formData, matPieces: Number(e.target.value)})}
                 />
@@ -458,7 +493,7 @@ const OrderEditor: React.FC<{
             </div>
 
             <div className="flex justify-between items-center pt-12 border-t-4 border-white mt-4">
-              <span className="text-sm font-black text-slate-900 uppercase tracking-[0.5em]">DIRECT MATERIALS SUBTOTAL</span>
+              <span className="text-sm font-black text-slate-900 uppercase tracking-[0.5em]">TOTAL DIRECT MATERIALS</span>
               <span className="text-5xl font-black text-indigo-600 tabular-nums drop-shadow-sm">{formatCurrency(materialBreakdown.total)}</span>
             </div>
           </div>
@@ -503,6 +538,7 @@ const OrderEditor: React.FC<{
                           className="w-full font-bold text-slate-800 bg-transparent outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 rounded-xl p-3 transition-all"
                           placeholder="Project milestone or resource..."
                           value={item.desc}
+                          onKeyDown={e => handleKeyDown(e, idx)}
                           onChange={e => updateItem(idx, 'desc', e.target.value)}
                         />
                       </td>
@@ -535,20 +571,13 @@ const OrderEditor: React.FC<{
                       </td>
                     </tr>
                   ))}
-                  {(formData.items || []).length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center text-slate-300 text-sm font-medium italic tracking-wide leading-relaxed">
-                        No scope items added. Define project milestones to estimate value.
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           <div className="mt-20 flex justify-end">
-            <div className="w-full md:w-[420px] space-y-6 bg-indigo-900 text-white p-14 rounded-[60px] shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+            <div className="w-full md:w-[420px] space-y-6 bg-indigo-900 text-white p-14 rounded-[60px] shadow-2xl relative overflow-hidden group">
                <div className="absolute top-0 right-0 w-48 h-48 bg-sky-500/10 rounded-full -mr-24 -mt-24 blur-3xl pointer-events-none transition-all group-hover:bg-sky-500/20"></div>
                <div className="flex justify-between items-center text-[11px] opacity-40 font-black uppercase tracking-[0.2em]">
                  <span>MATERIALS ESTIMATE</span>
@@ -563,17 +592,42 @@ const OrderEditor: React.FC<{
                  <span className="text-2xl font-black uppercase tracking-tighter italic leading-none">Draft Total</span>
                  <div className="text-right">
                    <p className="text-5xl font-black font-mono text-sky-400 drop-shadow-[0_0_20px_rgba(56,189,248,0.4)] leading-none">{formatCurrency(totals.total)}</p>
-                   <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mt-3 opacity-60">Estimated Projection</p>
                  </div>
                </div>
             </div>
           </div>
 
           <div className="mt-24 pt-10 border-t border-slate-100 italic text-slate-300 text-[10px] text-center uppercase tracking-[0.4em] font-black leading-relaxed">
-            {state.branding.footer || 'Generated by GlassWorks Financial Suite v4.0'}
+            {state.branding.footer || 'Official Sales Draft — GlassWorks Financial Suite'}
           </div>
         </div>
       </div>
+
+      {/* Success Modal Choice */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] w-full max-w-lg shadow-2xl p-12 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-24 h-24 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-8 shadow-inner">📋</div>
+            <h3 className="text-3xl font-black text-slate-900 mb-2 italic uppercase">Draft Saved</h3>
+            <p className="text-slate-500 font-bold mb-10 leading-relaxed">The project order is now active in your pipeline. Generate a physical copy for the client?</p>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <button 
+                onClick={() => { onPrint(formData as SalesOrder, true); setShowSuccess(false); }}
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 shadow-xl hover:bg-indigo-500 transition-all active:scale-[0.98]"
+              >
+                🖨️ PRINT PROJECT DRAFT
+              </button>
+              <button 
+                onClick={() => { setShowSuccess(false); onClose(); }}
+                className="w-full py-5 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all active:scale-[0.98]"
+              >
+                DONE, RETURN TO LIST
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

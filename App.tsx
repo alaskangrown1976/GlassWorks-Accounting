@@ -35,30 +35,11 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [toast, setToast] = useState<{ msg: string; onUndo?: () => void } | null>(null);
   const [undoStack, setUndoStack] = useState<AppState[]>([]);
-  const [printTarget, setPrintTarget] = useState<{ type: 'invoice' | 'order', data: Invoice | SalesOrder } | null>(null);
+  const [printTarget, setPrintTarget] = useState<{ type: 'invoice' | 'order', data: Invoice | SalesOrder, autoPrint?: boolean } | null>(null);
 
   useEffect(() => {
     localStorage.setItem('glassworks-data-v4', JSON.stringify(state));
   }, [state]);
-
-  useEffect(() => {
-    if (printTarget) {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
-
-      const handleAfterPrint = () => {
-        setPrintTarget(null);
-      };
-
-      window.addEventListener('afterprint', handleAfterPrint);
-
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('afterprint', handleAfterPrint);
-      };
-    }
-  }, [printTarget]);
 
   const flashToast = useCallback((msg: string, onUndo?: () => void) => {
     setToast({ msg, onUndo });
@@ -84,8 +65,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handlePrintRequest = (type: 'invoice' | 'order', data: Invoice | SalesOrder) => {
-    setPrintTarget({ type, data });
+  const handlePrintRequest = (type: 'invoice' | 'order', data: Invoice | SalesOrder, autoPrint: boolean = false) => {
+    setPrintTarget({ type, data, autoPrint });
   };
 
   if (printTarget) {
@@ -94,6 +75,8 @@ const App: React.FC = () => {
         type={printTarget.type} 
         data={printTarget.data} 
         state={state} 
+        autoPrint={printTarget.autoPrint}
+        onBack={() => setPrintTarget(null)}
       />
     );
   }
@@ -114,7 +97,7 @@ const App: React.FC = () => {
               state={state} 
               updateState={updateState} 
               flashToast={flashToast} 
-              onPrint={(inv) => handlePrintRequest('invoice', inv)} 
+              onPrint={(inv, auto) => handlePrintRequest('invoice', inv, auto)} 
               onUndo={handleUndo}
             />
           )}
@@ -123,7 +106,7 @@ const App: React.FC = () => {
               state={state} 
               updateState={updateState} 
               flashToast={flashToast} 
-              onPrint={(ord) => handlePrintRequest('order', ord)} 
+              onPrint={(ord, auto) => handlePrintRequest('order', ord, auto)} 
               onUndo={handleUndo}
             />
           )}
